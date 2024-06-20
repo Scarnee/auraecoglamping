@@ -8,8 +8,8 @@ export default function NavBar() {
             const navbar = document.querySelector(".navbar");
             const video = document.getElementById("background-video");
 
-            const videoRect = video.getBoundingClientRect();
-            const navbarRect = navbar.getBoundingClientRect();
+            const videoRect = video!.getBoundingClientRect();
+            const navbarRect = navbar!.getBoundingClientRect();
 
             if (navbarRect.bottom > videoRect.top && navbarRect.top < videoRect.bottom) {
                 setIsOverVideo(true);
