@@ -1,4 +1,13 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
 
-export default nextConfig;
+import withVideos from "next-videos";
+
+const nextConfig = {
+    /* config options here */
+};
+
+export default {
+    ...nextConfig,
+
+    ...withVideos(),
+};
