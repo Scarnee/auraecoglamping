@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+    background-color: #0c404c;
+    color: white;
+}
+/*
 .navbar {
     position: fixed;
     top: 0;
@@ -14,14 +19,33 @@
 }
 
 .navbar.solid {
-    background-color: red;
+    background-color: #0c404c;
+}*/
+#background-video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    min-width: 100%;
+    min-height: 100%;
+    z-index: -1;
+}
+.content {
+    position: relative;
+    z-index: 5;
+    color: white;
+    top: 80%;
+    left: 50%;
+    -ms-transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%);
+    margin: 0;
+    text-align: center;
 }
 .embla {
-    max-width: 80%;
+    max-width: 60%;
     margin: auto;
-    --slide-height: 20rem;
+    --slide-height: 30rem;
     --slide-spacing: 1.5rem;
-    --slide-size: 60%;
+    --slide-size: 100%;
 }
 .embla__viewport {
     overflow: hidden;
@@ -47,4 +71,9 @@
     height: var(--slide-height);
     overflow: hidden;
     object-fit: cover;
+}
+.title {
+    font-size: 2rem;
+    font-weight: 700;
+    text-align: center;
 }
