@@ -1,25 +1,42 @@
 "use client";
 import { getLocalTimeZone, today } from "@internationalized/date";
-import { Button, Checkbox, RangeCalendar } from "@nextui-org/react";
+import { Button, Checkbox, DateValue, RangeCalendar } from "@nextui-org/react";
 import { loadStripe } from "@stripe/stripe-js";
 import { headers } from "next/headers";
 import React, { FormEvent, use, useEffect, useState } from "react";
 import axios from "axios";
+import { start } from "repl";
+import { isWithinInterval, parseISO } from "date-fns";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 const Book: React.FC = () => {
     const [prices, setPrices] = useState<any[]>([]);
-
+    const [bookedDates, setBookedDates] = useState<any[]>([]);
     const fetchPrices = async () => {
         const res = await fetch("/api/getprices");
         const data = await res.json();
         setPrices(data);
         console.log(data);
     };
+    const fetchBookedDates = async () => {
+        const res = await fetch("/api/booked-dates");
+        const data = await res.json();
+        setBookedDates(data.bookedDates);
+        console.log(data);
+    };
+    const isDateDisabled = (date: DateValue) => {
+        return bookedDates.some((range) =>
+            isWithinInterval(parseISO(date.toString()), {
+                start: parseISO(range.start),
+                end: parseISO(range.end),
+            })
+        );
+    };
 
     useEffect(() => {
         fetchPrices();
+        fetchBookedDates();
     }, []);
 
     const [name, setName] = useState<string>("");
@@ -38,8 +55,10 @@ const Book: React.FC = () => {
         const { data } = await axios.post(
             "/api/payment",
             {
-                priceId: totalPrice,
+                priceId: prices[0].id,
                 qty: nights,
+                start: dateStart.toISOString(),
+                end: dateEnd.toISOString(),
             },
             {
                 headers: {
@@ -59,7 +78,7 @@ const Book: React.FC = () => {
                 <input className=" text-black" type="text" value={name} onChange={(e) => setName(e.target.value)} />
             </label>
             <div>
-                <RangeCalendar aria-label="Date (Controlled)" value={value} onChange={setValue} />
+                <RangeCalendar aria-label="Date (Controlled)" value={value} onChange={setValue} isDateUnavailable={isDateDisabled} />
             </div>
 
             {prices.map((price) => (
@@ -73,7 +92,8 @@ const Book: React.FC = () => {
                     </p>
                 </div>
             ))}
-
+            <p>Check-In Date : {dateStart.toLocaleDateString("es-mx", { timeZone: "UTC" })} 2:00 PM</p>
+            <p>Check-Out Date : {dateEnd.toLocaleDateString("es-MX", { timeZone: "UTC" })} 11:00 AM</p>
             <p>{nights} night(s)</p>
             <p>{totalPrice} MXN</p>
 
