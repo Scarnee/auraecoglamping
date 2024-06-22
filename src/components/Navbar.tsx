@@ -52,7 +52,7 @@ export default function NavBar() {
                 </NavbarItem>
 
                 <NavbarItem>
-                    <Button as={Link} href="#" color="success" variant="bordered">
+                    <Button as={Link} href="/book" color="success" variant="bordered">
                         Book Now !
                     </Button>
                 </NavbarItem>
