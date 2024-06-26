@@ -9,7 +9,6 @@ export async function POST(request: Request) {
     let qty = data.qty;
     let start = data.start;
     let end = data.end;
-
     const session = await stripe.checkout.sessions.create({
         payment_method_types: ["card"],
 
@@ -21,7 +20,11 @@ export async function POST(request: Request) {
         ],
         mode: "payment",
         success_url: "http://localhost:3000/success",
-        cancel_url: "http://localhost:3000",
+        cancel_url: "http://localhost:3000/cancel",
+        metadata: {
+            start: start,
+            end: end,
+        },
     });
     bookedDates.push({ start: new Date(start), end: new Date(end) });
     return NextResponse.json(session.url);

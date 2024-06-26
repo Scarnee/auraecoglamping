@@ -1,48 +1,81 @@
 "use client";
 import { getLocalTimeZone, today } from "@internationalized/date";
-import { Button, Checkbox, DateValue, RangeCalendar } from "@nextui-org/react";
+import { Button, DateValue, RangeCalendar } from "@nextui-org/react";
 import { loadStripe } from "@stripe/stripe-js";
-import { headers } from "next/headers";
-import React, { FormEvent, use, useEffect, useState } from "react";
-import axios from "axios";
-import { start } from "repl";
-import { isWithinInterval, parseISO } from "date-fns";
-
+import { addDays, isWithinInterval, parseISO } from "date-fns";
+import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+
+interface BookedDate {
+    start: string;
+    end: string;
+}
 
 const Book: React.FC = () => {
     const [prices, setPrices] = useState<any[]>([]);
-    const [bookedDates, setBookedDates] = useState<any[]>([]);
+    const [bookedDates, setBookedDates] = useState<BookedDate[]>([]);
+    const router = useRouter();
+    // Getting all the prices from the Stripe API
     const fetchPrices = async () => {
         const res = await fetch("/api/getprices");
         const data = await res.json();
         setPrices(data);
         console.log(data);
     };
-    const fetchBookedDates = async () => {
-        const res = await fetch("/api/booked-dates");
-        const data = await res.json();
-        setBookedDates(data.bookedDates);
-        console.log(data);
-    };
-    const isDateDisabled = (date: DateValue) => {
-        return bookedDates.some((range) =>
-            isWithinInterval(parseISO(date.toString()), {
-                start: parseISO(range.start),
-                end: parseISO(range.end),
-            })
-        );
-    };
-
+    // Getting all the booked dates from the database
     useEffect(() => {
-        fetchPrices();
+        const fetchBookedDates = async () => {
+            try {
+                const res = await fetch("/api/booked-dates", {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                });
+
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    console.error("Failed to fetch booked dates:", errorData);
+                    return;
+                }
+
+                const data = await res.json();
+                console.log(data);
+                setBookedDates(data);
+            } catch (error) {
+                console.error("Error fetching booked dates:", error);
+            }
+        };
+
         fetchBookedDates();
     }, []);
 
+    // Check if the date is disabled or not
+    const isDateDisabled = (date: DateValue) => {
+        return bookedDates.some((range) => {
+            // Parse the range start date
+            const rangeStartDate = parseISO(range.start);
+
+            // Add one day to the range start date
+            const rangeStartDatePlusOneDay = addDays(rangeStartDate, 1);
+
+            // Check if the date is within the adjusted interval
+            return isWithinInterval(parseISO(date.toString()), {
+                start: parseISO(range.start),
+                end: parseISO(range.end),
+            });
+        });
+    };
+    // Fetch the prices and booked dates on component mount
+    useEffect(() => {
+        fetchPrices();
+    }, []);
+    // State for the name input
     const [name, setName] = useState<string>("");
     let [value, setValue] = React.useState({
         start: today(getLocalTimeZone()),
-        end: today(getLocalTimeZone()).add({ weeks: 1 }),
+        end: today(getLocalTimeZone()),
     });
     let dateStart = new Date(value.start.toString());
     let dateEnd = new Date(value.end.toString());
@@ -50,7 +83,7 @@ const Book: React.FC = () => {
     let price = 2000;
     let totalPrice = price * nights;
 
-    const handlePayment = async (e: any) => {
+    /*const handlePayment = async (e: any) => {
         e.preventDefault();
         const { data } = await axios.post(
             "/api/payment",
@@ -67,6 +100,24 @@ const Book: React.FC = () => {
             }
         );
         window.location.assign(data);
+    };*/
+
+    const handlePayment = async (e: any) => {
+        e.preventDefault();
+        const response = await fetch("/api/book-dates", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                start: dateStart.toISOString(),
+                end: dateEnd.toISOString(),
+            }),
+        });
+        const data = await response.json();
+        console.log(data);
+
+        router.push("/success");
     };
 
     return (
@@ -78,7 +129,7 @@ const Book: React.FC = () => {
                 <input className=" text-black" type="text" value={name} onChange={(e) => setName(e.target.value)} />
             </label>
             <div>
-                <RangeCalendar aria-label="Date (Controlled)" value={value} onChange={setValue} isDateUnavailable={isDateDisabled} />
+                <RangeCalendar hideDisabledDates minValue={today(getLocalTimeZone())} aria-label="Date (Controlled)" value={value} onChange={setValue} isDateUnavailable={isDateDisabled} />
             </div>
 
             {prices.map((price) => (
