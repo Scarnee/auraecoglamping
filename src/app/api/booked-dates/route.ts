@@ -1,4 +1,3 @@
-import { NextApiRequest, NextApiResponse } from "next";
 import prisma from "../../../lib/prisma"; // Adjust the import based on your actual file structure
 import { NextResponse } from "next/server";
 
