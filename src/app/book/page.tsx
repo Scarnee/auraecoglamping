@@ -1,29 +1,21 @@
 "use client";
-import { getLocalTimeZone, today } from "@internationalized/date";
-import { Button, DateValue, RangeCalendar } from "@nextui-org/react";
-import { loadStripe } from "@stripe/stripe-js";
-import { addDays, isWithinInterval, parseISO } from "date-fns";
+import { CalendarDate, getLocalTimeZone, today } from "@internationalized/date";
+import { Button, Calendar, DateValue } from "@nextui-org/react";
+import { addDays, differenceInCalendarDays, isWithinInterval, parseISO } from "date-fns";
 import { useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+import { useEffect, useState } from "react";
 
 interface BookedDate {
     start: string;
     end: string;
 }
 
-const Book: React.FC = () => {
-    const [prices, setPrices] = useState<any[]>([]);
+const MyComponent = () => {
+    const [checkinDate, setCheckinDate] = useState<DateValue>();
+    const [checkoutDate, setCheckoutDate] = useState<DateValue>();
     const [bookedDates, setBookedDates] = useState<BookedDate[]>([]);
+    const [maxCheckoutDate, setMaxCheckoutDate] = useState<DateValue | undefined>(undefined);
     const router = useRouter();
-    // Getting all the prices from the Stripe API
-    const fetchPrices = async () => {
-        const res = await fetch("/api/getprices");
-        const data = await res.json();
-        setPrices(data);
-        console.log(data);
-    };
-    // Getting all the booked dates from the database
     useEffect(() => {
         const fetchBookedDates = async () => {
             try {
@@ -51,57 +43,74 @@ const Book: React.FC = () => {
         fetchBookedDates();
     }, []);
 
-    // Check if the date is disabled or not
     const isDateDisabled = (date: DateValue) => {
         return bookedDates.some((range) => {
-            // Parse the range start date
-            const rangeStartDate = parseISO(range.start);
-
-            // Add one day to the range start date
-            const rangeStartDatePlusOneDay = addDays(rangeStartDate, 1);
-
             // Check if the date is within the adjusted interval
+
             return isWithinInterval(parseISO(date.toString()), {
                 start: parseISO(range.start),
                 end: parseISO(range.end),
             });
         });
     };
-    // Fetch the prices and booked dates on component mount
+    // Disabling checkout dates
+    const isCheckoutDateDisabled = (date: DateValue) => {
+        const nextDay = addDays(parseISO(date.toString()), -1);
+        return bookedDates.some((range) => {
+            return isWithinInterval(nextDay, {
+                start: parseISO(range.start),
+                end: parseISO(range.end),
+            });
+        });
+    };
+    // Setting max checkout date
     useEffect(() => {
-        fetchPrices();
-    }, []);
-    // State for the name input
-    const [name, setName] = useState<string>("");
-    let [value, setValue] = React.useState({
-        start: today(getLocalTimeZone()),
-        end: today(getLocalTimeZone()),
-    });
-    let dateStart = new Date(value.start.toString());
-    let dateEnd = new Date(value.end.toString());
-    let nights = (dateEnd.getTime() - dateStart.getTime()) / (24 * 60 * 60 * 1000);
-    let price = 2000;
-    let totalPrice = price * nights;
+        if (checkinDate) {
+            const nextBookedDate = bookedDates
+                .map((range) => parseISO(range.start))
+                .filter((date) => date > parseISO(checkinDate.toString()))
+                .sort((a, b) => a.getTime() - b.getTime())[0];
 
-    /*const handlePayment = async (e: any) => {
-        e.preventDefault();
-        const { data } = await axios.post(
-            "/api/payment",
-            {
-                priceId: prices[0].id,
-                qty: nights,
-                start: dateStart.toISOString(),
-                end: dateEnd.toISOString(),
-            },
-            {
-                headers: {
-                    "Content-Type": "application/json",
-                },
+            if (nextBookedDate) {
+                const nextDay = addDays(nextBookedDate, 1);
+                setMaxCheckoutDate(new CalendarDate(nextDay.getFullYear(), nextDay.getMonth() + 1, nextDay.getDate()));
+            } else {
+                setMaxCheckoutDate(undefined);
             }
-        );
-        window.location.assign(data);
-    };*/
+        } else {
+            setMaxCheckoutDate(undefined);
+        }
+    }, [checkinDate, bookedDates]);
+    // Handling checkin date change with checkout date reset
+    const handleCheckinDateChange = (date: DateValue) => {
+        setCheckinDate(date);
+        setCheckoutDate(date); // Reset checkout date when checkin date changes
+    };
+    // Calculate total nights
+    const calculateNights = () => {
+        if (checkinDate && checkoutDate) {
+            const checkin = parseISO(checkinDate.toString());
+            const checkout = parseISO(checkoutDate.toString());
+            return differenceInCalendarDays(checkout, checkin);
+        }
+        return 0;
+    };
 
+    // Calculate total price
+    let price = 2000;
+    let totalPrice = price * calculateNights();
+    let dateStart = new Date(checkinDate ? checkinDate.toString() : "");
+    let dateEnd = new Date(checkoutDate ? checkoutDate.toString() : "");
+
+    // Create all the inputs
+    let [name, setName] = useState<string>("");
+    let [phoneNumber, setPhoneNumber] = useState<string>("");
+    let [email, setEmail] = useState<string>("");
+    let [nationality, setNationality] = useState<string>("");
+    let [specialRequirements, setSpecialRequirements] = useState<string>("");
+    let [lastName, setLastName] = useState<string>("");
+
+    // Handle payment
     const handlePayment = async (e: any) => {
         e.preventDefault();
         const response = await fetch("/api/book-dates", {
@@ -112,47 +121,111 @@ const Book: React.FC = () => {
             body: JSON.stringify({
                 start: dateStart.toISOString(),
                 end: dateEnd.toISOString(),
+                lastName: lastName,
+                firstName: name,
+                phone: phoneNumber,
+                email: email,
+                nationality: nationality,
+                specialRequirements: specialRequirements,
             }),
         });
         const data = await response.json();
         console.log(data);
-
         router.push("/success");
     };
-
     return (
-        <div>
-            <h1>Book Slot </h1>
-
-            <label>
-                Name:
-                <input className=" text-black" type="text" value={name} onChange={(e) => setName(e.target.value)} />
-            </label>
-            <div>
-                <RangeCalendar hideDisabledDates minValue={today(getLocalTimeZone())} aria-label="Date (Controlled)" value={value} onChange={setValue} isDateUnavailable={isDateDisabled} />
-            </div>
-
-            {prices.map((price) => (
-                <div key={price.id}>
-                    <p className=" text-white">1 night</p>
-                    <p className=" text-white">
-                        {(price.unit_amount / 100).toLocaleString("en-US", {
-                            style: "currency",
-                            currency: "MXN",
-                        })}
-                    </p>
+        <div className="flex flex-col justify-evenly align-middle text-center gap-2 mt-4 mb-4">
+            <h1 className="font-bold text-3xl text-center mb-4">Book your stay at Aura Eco Glamping !!!</h1>
+            <div className="flex md:flex-row md:justify-evenly flex-col w-2/3 gap-4 self-center">
+                <div className="flex flex-col justify-evenly align-middle">
+                    <h1 className="text-center">Select Checkin Date</h1>
+                    <Calendar defaultValue={null} minValue={today(getLocalTimeZone())} value={checkinDate} onChange={handleCheckinDateChange} isDateUnavailable={isDateDisabled} />
                 </div>
-            ))}
-            <p>Check-In Date : {dateStart.toLocaleDateString("es-mx", { timeZone: "UTC" })} 2:00 PM</p>
-            <p>Check-Out Date : {dateEnd.toLocaleDateString("es-MX", { timeZone: "UTC" })} 11:00 AM</p>
-            <p>{nights} night(s)</p>
-            <p>{totalPrice} MXN</p>
+                <div className="flex flex-col justify-evenly">
+                    <h1 className="text-center">Select Checkout Date</h1>
+                    <Calendar
+                        defaultValue={null}
+                        value={checkoutDate}
+                        onChange={setCheckoutDate}
+                        isDateUnavailable={isCheckoutDateDisabled}
+                        minValue={checkinDate || today(getLocalTimeZone())}
+                        maxValue={maxCheckoutDate}
+                    />
+                </div>
+            </div>
+            <form className="flex flex-row gap-5 w-2/3 justify-evenly mx-auto p-4 bg-transparent">
+                <div className="flex flex-col justify-evenly align-middle w-1/2">
+                    <label className="flex flex-col">
+                        <div className="text-white">First Name</div>
+                        <input
+                            className="text-black mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                        />
+                    </label>
+                    <label className="flex flex-col">
+                        <span className="text-white">Last Name</span>
+                        <input
+                            className="text-black mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
+                            type="text"
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
+                        />
+                    </label>
+                    <label className="flex flex-col">
+                        <span className="text-white">Phone Number</span>
+                        <input
+                            className="text-black mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
+                            type="tel"
+                            value={phoneNumber}
+                            onChange={(e) => setPhoneNumber(e.target.value)}
+                        />
+                    </label>
+                    <label className="flex flex-col">
+                        <span className="text-white">Email</span>
+                        <input
+                            className="text-black mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                        />
+                    </label>
+                    <label className="flex flex-col">
+                        <span className="text-white">Nationality</span>
+                        <input
+                            className="text-black mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
+                            type="text"
+                            value={nationality}
+                            onChange={(e) => setNationality(e.target.value)}
+                        />
+                    </label>
+                    <label className="flex flex-col">
+                        <span className="text-white">Special Requirements</span>
+                        <textarea
+                            className=" text-black mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-200"
+                            rows={3}
+                            value={specialRequirements}
+                            onChange={(e) => setSpecialRequirements(e.target.value)}></textarea>
+                    </label>
+                </div>
 
-            <Button type="submit" color="success" isDisabled={!name || !dateStart || !dateEnd} onClick={handlePayment}>
-                Book
-            </Button>
+                <div className="flex flex-col w-1/2 justify-evenly align-middle">
+                    <p>Check-In Date : {checkinDate ? checkinDate.toString() : ""} 2:00 PM</p>
+                    <p>Check-Out Date : {checkoutDate ? checkoutDate.toString() : ""} 11:00 AM</p>
+                    <p>Total Nights : {calculateNights()} Night(s)</p>
+                    <p>Total Price : {totalPrice} MXN</p>
+                    <Button
+                        className="align-middle w-1/2 self-center"
+                        type="submit"
+                        color="success"
+                        isDisabled={!name || !checkinDate || !checkoutDate || !phoneNumber || !email || !lastName || !nationality}>
+                        Book
+                    </Button>
+                </div>
+            </form>
         </div>
     );
 };
 
-export default Book;
+export default MyComponent;

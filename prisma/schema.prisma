@@ -18,4 +18,10 @@ model BookedDate {
   id     String @id @default(auto()) @map("_id") @db.ObjectId
   start DateTime
   end   DateTime
+  lastName  String
+  firstName String
+  phone String @default("000-000-0000")
+  email String
+  nationality String
+  specialRequirements String
 }

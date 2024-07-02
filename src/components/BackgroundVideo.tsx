@@ -7,7 +7,7 @@ export default function BackgroundVideo() {
             <div className="content ">
                 <h1 className=" text-4xl font-bold">Aura Eco Glamping</h1>
                 <p className=" text-lg">Located in Chiapas, Mexico</p>
-                <Button as={Link} href="#" color="success" size="lg" variant="solid" className=" text-white">
+                <Button as={Link} href="/book" color="success" size="lg" variant="solid" className=" text-white">
                     Book Now !
                 </Button>
             </div>
