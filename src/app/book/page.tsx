@@ -219,7 +219,8 @@ const MyComponent = () => {
                         className="align-middle w-1/2 self-center"
                         type="submit"
                         color="success"
-                        isDisabled={!name || !checkinDate || !checkoutDate || !phoneNumber || !email || !lastName || !nationality}>
+                        isDisabled={!name || !checkinDate || !checkoutDate || !phoneNumber || !email || !lastName || !nationality}
+                        onClick={handlePayment}>
                         Book
                     </Button>
                 </div>
