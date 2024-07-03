@@ -9,7 +9,7 @@ interface BookedDate {
     start: string;
     end: string;
 }
-
+export const dynamic = "force-dynamic";
 const MyComponent = () => {
     const [checkinDate, setCheckinDate] = useState<DateValue>();
     const [checkoutDate, setCheckoutDate] = useState<DateValue>();
